@@ -1,11 +1,16 @@
-/** Tom's Wrench Mask **/
+/* Tom's Wrench Mask forked by benzoganger and rewriten to FastLED library for WS2812 LED support */
+/* Original project by https://github.com/TomMakesThings */
 
-#include <LedControl.h>
+#include <FastLED.h>
 
-// DIN, CLK, CS, matrix number
-LedControl led=LedControl(12,10,11,2);
+#define NUM_LEDS_EYE_LEFT 64
+#define NUM_LEDS_EYE_RIGHT 64
+#define DATA_PIN_EYE_LEFT 12
+#define DATA_PIN_EYE_RIGHT 5
 
-// Delays between frames
+CRGB eye_left[NUM_LEDS_EYE_LEFT];
+CRGB eye_right[NUM_LEDS_EYE_RIGHT];
+
 unsigned long transitionTime=5;
 unsigned long blinkTime=200;  
 unsigned long longblinkTime=400;
@@ -13,44 +18,11 @@ unsigned long shortTime=800;
 unsigned long normalTime=2000;
 unsigned long longTime=6000;
 
-// Current key value
-String currentValue = "key1";
-
-// Current LED frame
+String currentValue = "key28";
+String data = "";
+int maxBrightness = 255;
 int frame = 0;
 
-// Data received from bluetooth
-String data = "";
-
-// Max intensity of LEDs
-int maxBrightness = 5;
-
-// Speed of scrolling text
-int textSpeed = 50;
-
-// String storing a message for scrolling text
-String characterMessage = "DEDSEC";
-
-// The maximum number of characters in a message
-int maxMessageSize = 30;
-
-// Pointer to current character on scrolling text message
-int characterMessagePointer = 0;
-
-/** Array values in binary **/
-
-// Custom LED
-byte customLED[] = 
-{
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000,
-  B00000000
-};
 
 // X_X
 byte X[] = 
@@ -1155,57 +1127,6 @@ byte roundFull[] =
   B00111100
 };
 
-/** Alphabet is stored in flash memory
-letters are rotated as they scroll from right to left **/
-
-const PROGMEM byte alphabet[] = {
-  B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, // space
-  B00000000, B00000000, B00000000, B11111011, B11111011, B00000000, B00000000, B00000000, // !
-  B00000000, B00000000, B00000000, B00000011, B00000011, B00000000, B00000000, B00000000, // .
-  B00000000, B01111110, B11111111, B11000011, B11000011, B11111111, B01111110, B00000000, // 0
-  B00000000, B00000000, B00000011, B11111111, B11111111, B11000011, B00000000, B00000000, // 1
-  B00000000, B01110011, B11111011, B11001011, B11001111, B11001111, B01100111, B00000000, // 2
-  B00000000, B01111110, B11111111, B11011011, B11011011, B11011011, B11000011, B00000000, // 3
-  B00000100, B11111111, B11111111, B11000100, B01100100, B00111100, B00011100, B00000000, // 4
-  B00000000, B11001110, B11011111, B11011011, B11011011, B11111011, B11111010, B00000000, // 5
-  B00000000, B11001110, B11011111, B11011011, B11011011, B11111111, B11111110, B00000000, // 6
-  B00000000, B11100000, B11110000, B11011000, B11001100, B11001111, B11000111, B00000000, // 7
-  B00000000, B01110110, B11111111, B11001001, B11001001, B11111111, B01110110, B00000000, // 8
-  B00000000, B01111110, B11111111, B11001011, B11001011, B11111011, B01110000, B00000000, // 9
-  B00000000, B01111111, B11111111, B11001000, B11001000, B11111111, B01111111, B00000000, // A
-  B00000000, B01110111, B11111111, B11001001, B11001001, B11111111, B11111111, B00000000, // B
-  B00000000, B01100110, B11100111, B11000011, B11000011, B11111111, B01111110, B00000000, // C
-  B00000000, B01111110, B11111111, B11000011, B11000011, B11111111, B11111111, B00000000, // D
-  B00000000, B11000011, B11011011, B11011011, B11011011, B11111111, B11111111, B00000000, // E
-  B00000000, B11000000, B11011000, B11011000, B11011000, B11111111, B11111111, B00000000, // F
-  B00000000, B01101000, B11101111, B11001011, B11000011, B11111111, B01111110, B00000000, // G
-  B00000000, B11111111, B11111111, B00011000, B00011000, B11111111, B11111111, B00000000, // H
-  B00000000, B11000011, B11000011, B11111111, B11111111, B11000011, B11000011, B00000000, // I
-  B00000000, B11000000, B11000000, B11111111, B11111111, B11000011, B11000011, B00000000, // J
-  B00000000, B10000001, B11000011, B01100110, B00111100, B11111111, B11111111, B00000000, // K
-  B00000000, B00000011, B00000011, B00000011, B00000011, B11111111, B11111111, B00000000, // L
-  B01111111, B11111111, B01100000, B00111111, B01111111, B11100000, B11111111, B01111111, // M
-  B11111111, B11111111, B00000111, B00011110, B01111000, B11100000, B11111111, B11111111, // N
-  B00111100, B01111110, B11000011, B11000011, B11000011, B11000011, B01111110, B00111100, // O
-  B00000000, B01111000, B11111100, B11001100, B11001100, B11111111, B11111111, B00000000, // P
-  B00000001, B01111110, B11111111, B11001011, B11010011, B11000011, B11111111, B01111110, // Q
-  B00000000, B01110001, B11111011, B11011110, B11011100, B11111111, B11111111, B00000000, // R
-  B00000000, B11001110, B11011111, B11011011, B11011011, B11111011, B01110011, B00000000, // S
-  B00000000, B11000000, B11000000, B11111111, B11111111, B11000000, B11000000, B00000000, // T
-  B00000000, B11111111, B11111111, B00000011, B00000011, B11111111, B11111111, B00000000, // U
-  B00000000, B11111100, B11111110, B00000111, B00000111, B11111110, B11111100, B00000000, // V
-  B11111110, B11111111, B00000011, B00011111, B00011111, B00000011, B11111111, B11111110, // W
-  B11000001, B01100011, B00110110, B00011100, B00011100, B00110110, B01100011, B11000001, // X
-  B10000000, B11100000, B11111000, B00011111, B00011111, B11111000, B11100000, B10000000, // Y
-  B11000011, B11100011, B11110011, B11111011, B11011111, B11001111, B11000111, B11000011, // Z
-
-};
-
-void clearDisplays() {
-  led.clearDisplay(0);
-  led.clearDisplay(1);
-}
-
 boolean controlledDelay(unsigned long delayValue) {
   for (int i = 0; i < delayValue; i++) {
     if (Serial.peek() == '(') {
@@ -1216,308 +1137,99 @@ boolean controlledDelay(unsigned long delayValue) {
   return false;
 }
 
-void set_both_eyes(byte eye0[], byte eye1[])
-//right eye = 0, left eye = 1
+boolean inKeySet(String value)
 {
-  for (int i = 0; i < 8; i++)
-  {
-    led.setRow(0,i,eye0[i]);
-    led.setRow(1,i,eye1[i]);
+  boolean valid = false;
+  if (value.substring(0, 3) == "key" && value.substring(3).toInt() <= 47) {
+    valid = true;
   }
+  return valid;
 }
 
-void remove_eye_slow(byte eye[], int e)
-{
-  int limit = 8;
-  for (int i = 0; i < 8; i++)
-  {
-    for (int j = 0; j < limit; j++)
-    {
-      //Can set to column
-      led.setRow(e, j + (8-limit), eye[j]);
+void displayEyes(const byte emoticonLeft[], const byte emoticonRight[]) {
+  for (int i = 0; i < 8; i++) {
+    byte left = emoticonLeft[i];
+    byte right = emoticonRight[i];
+    int indexOffset = i * 8;
+    
+    for (int j = 0; j < 8; j++) {
+      eye_left[indexOffset + j] = (left >> j) & 1 ? CRGB::Red : CRGB::Black;
+      eye_right[indexOffset + j] = (right >> j) & 1 ? CRGB::Red : CRGB::Black;
     }
-    controlledDelay(transitionTime);
-    led.clearDisplay(e);
-    --limit;
   }
+  FastLED.show();
 }
 
-void remove_both_eyes_slow(byte eye0[], byte eye1[])
-{
-  int limit = 8;
-  for (int i = 0; i < 8; i++)
-  {
-    for (int j = 0; j < limit; j++)
-    {
-      led.setRow(0, j + (8-limit), eye0[j]);
-      led.setRow(1, j + (8-limit), eye1[j]);
-    }
-    controlledDelay(transitionTime);
-    clearDisplays();
-    --limit;
-  }
-}
 
-void set_both_eyes_slow(byte eye0[], byte eye1[])
-{
-  int limit = 1;
-  for (int i = 0; i < 8; i++)
-  {
-    for (int j = 0; j < limit; j++)
-    {
-      led.setRow(0, 7 - (j + (8-limit)), eye0[7-j]);
-      led.setRow(1, 7 - (j + (8-limit)), eye1[7-j]);
-    }
-    controlledDelay(transitionTime);
-    clearDisplays();
-    ++limit;
-  }
-}
+void sleep_eyes() {
+  // Set brightness to 50%
+  int targetBrightness = maxBrightness / 2;
+  FastLED.setBrightness(targetBrightness);
+  FastLED.show();
 
-void set_both_eyes_slow_reverse(byte eye0[], byte eye1[])
-{
-  int limit = 1;
-  for (int i = 0; i < 8; i++)
-  {
-    for (int j = 0; j < limit; j++)
-    {
-      led.setRow(0, j + (8-limit), eye0[j]);
-      led.setRow(1, j + (8-limit), eye1[j]);
-    }
-    controlledDelay(transitionTime);
-    clearDisplays();
-    ++limit;
-  }
-}
+  // Set both eyes to (z, z)
+  displayEyesSlow(z, z);
+  displayEyes(z, z);
 
-void scrolling_eye(byte eye[], int e)
-{
-  int limit = 8;
-  for (int i = 0; i < 8; i++)
-  {
-    for (int j = 0; j < limit; j++)
-    {
-      led.setColumn(e, 7 + (j + (8-limit)), eye[7-j]);
+  // Gradually dim the brightness
+  double step = 0.1;
+  for (double j = maxBrightness; j > 0; j -= step) {
+    FastLED.setBrightness(j);
+    FastLED.show();
+    if (controlledDelay(25)) {
+      break;
     }
-    controlledDelay(textSpeed);
-    clearDisplays();
-    ++limit;
   }
-  int limit2 = 7;
-  for (int i = 0; i < 7; i++)
-  {
-    for (int j = limit2; j > -1; j--)
-    {
-      led.setColumn(e, 7 - (j + (8-limit2)), eye[j]);
-    }
-    controlledDelay(textSpeed);
-    clearDisplays();
-    --limit2;
-  }
-}
-
-void scrolling_both_eyes(byte eye0[], byte eye1[])
-{
-  int limit = 8;
-  for (int i = 0; i < 8; i++)
-  {
-    for (int j = 0; j < limit; j++)
-    {
-      led.setColumn(0, 7 + (j + (8-limit)), eye0[7-j]);
-      led.setColumn(1, 7 + (j + (8-limit)), eye1[7-j]);
-    }
-    controlledDelay(textSpeed);
-    clearDisplays();
-    ++limit;
-  }
-  int limit2 = 7;
-  for (int i = 0; i < 7; i++)
-  {
-    for (int j = limit2; j > -1; j--)
-    {
-      led.setColumn(0, 7 - (j + (8-limit2)), eye0[j]);
-      led.setColumn(1, 7 - (j + (8-limit2)), eye1[j]);
-    }
-    controlledDelay(textSpeed);
-    clearDisplays();
-    --limit2;
-  }
-}
-
-void glitch_eyes()
-{
-  if (random(0, 200) == 0) {
-    for (int i = 0; i < random(0, 20); i++) {
-      set_both_eyes(exclamation, exclamation);
-      for (int j = 0; j < random(0, 20); j++) {
-        led.setLed(random(0, 2), random(0, 8), random(0, 8), true);
-      }
-      controlledDelay(blinkTime);
-      clearDisplays();
-      controlledDelay(blinkTime);
-    }
-  } else if (random(0, 1000) == 0) {
-    set_both_eyes_slow(hashtag, hashtag);
-    set_both_eyes(hashtag, hashtag);
-    for (int j = 0; j < random(0, 20); j++) {
-      led.setLed(random(0, 2), random(0, 8), random(0, 8), true);
-      controlledDelay(random(10, 100));
-    }
-    controlledDelay(blinkTime);
-    remove_both_eyes_slow(hashtag, hashtag);
-  } else if (random(0, 1200) == 0) {
-    bool a = true;
-    set_both_eyes_slow(invader1a, invader2a);
-    set_both_eyes(invader1a, invader2a);
-    for (int j = 0; j < random(3, 20); j++) {
-      if (a == true) {
-        a = false;
-        set_both_eyes(invader1a, invader2a);
-      } else {
-        a = true;
-        set_both_eyes(invader1b, invader2b);
-      }
-      controlledDelay(blinkTime);
-      for (int k = 0; k < random(0, 20); k++) {
-        led.setLed(random(0, 2), random(0, 8), random(0, 8), true);
-        controlledDelay(random(10, 100));
-      }
-    }
-    controlledDelay(blinkTime);
-    remove_both_eyes_slow(invader1a, invader2a);
-  } else if (random(0, 500) == 0) {
-    set_both_eyes_slow(X, X);
-    set_both_eyes(X, X);
-    controlledDelay(random(50, 3000));
-    for (int j = 0; j < random(0, 100); j++) {
-      led.setLed(random(0, 2), random(0, 8), random(0, 8), true);
-      controlledDelay(random(10, 100));
-    }
-    remove_both_eyes_slow(X, X);
-  } else {
-      if (random(0,2) == 0) {
-        led.setLed(random(0, 2), random(0, 8), random(0, 8), false);
-      }
-      else {
-        led.setLed(random(0, 2), random(0, 8), random(0, 8), true);
-      }
-      controlledDelay(5);
-  }
-  controlledDelay(random(0, 3));
 }
 
 void wink_eyes()
 {
   if (frame == 0) {
     frame = 1;
-    set_both_eyes_slow(tilde, wink_reverse);
-    set_both_eyes(tilde, wink_reverse);
+    displayEyesSlow(tilde, wink_reverse);
+    displayEyes(tilde, wink_reverse);
     controlledDelay(normalTime);
-    remove_both_eyes_slow(tilde, wink_reverse);
+    removeEyesSlow(tilde, wink_reverse);
   }
   else {
     frame = 0;
-    set_both_eyes_slow(wink, wink);
-    set_both_eyes(wink, wink);
+    displayEyesSlow(wink, wink);
+    displayEyes(wink, wink);
     controlledDelay(normalTime);
-    remove_both_eyes_slow(wink, wink);
+    removeEyesSlow(wink, wink);
   }
 }
 
-void heart_eyes()
-{
-  if (frame == 0) {
-    frame = 1;
-    set_both_eyes_slow(heart, heart);
-    set_both_eyes(heart, heart);
-    controlledDelay(longblinkTime);
-    clearDisplays();
+void clearDisplays() {
+  for (int i = 0; i < NUM_LEDS_EYE_LEFT; i++) {
+    eye_left[i] = CRGB::Black;
+    eye_right[i] = CRGB::Black;
   }
-  else if (frame == 1) {
-    frame = 2;
-    set_both_eyes(heart2, heart2);
-    controlledDelay(longblinkTime);
-    clearDisplays();
-  }
-  else if (frame == 2) {
-    frame = 3;
-    set_both_eyes(heart3, heart3);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 3) {
-    frame = 0;
-    set_both_eyes(heart2, heart2);
-    controlledDelay(longblinkTime);
-    clearDisplays();
-    remove_both_eyes_slow(heart, heart);
-  }
-}
-
-void sleep_eyes()
-{
-  set_both_eyes_slow(z, z);
-  set_both_eyes(z, z);
-  for (double j = maxBrightness; j > 0; j -= 0.1) {
-    led.setIntensity(0,j);
-    led.setIntensity(1,j);
-    if (controlledDelay(25)) {
-      break;
-    }
-  }
-  for (double i = 0; i <= maxBrightness; i += 0.1) {
-    led.setIntensity(0,i);
-    led.setIntensity(1,i);
-    if (controlledDelay(25)) {
-      break;
-    }
-  }
-  led.setIntensity(0,maxBrightness);
-  led.setIntensity(1,maxBrightness);
-  remove_both_eyes_slow(z, z);
+  FastLED.show();
 }
 
 void shy_eyes()
 {
-  set_both_eyes(wink, wink);
+  displayEyes(wink, wink);
   controlledDelay(longTime);
   clearDisplays();
-  set_both_eyes(wink_blink, wink_blink);
+  displayEyes(wink_blink, wink_blink);
   controlledDelay(blinkTime);
 }
 
-void money_eyes()
-{
-  for (int x = 0; x < random(5, 10); x++) {
-    set_both_eyes(dollar, dollar);
-    for (int j = maxBrightness; j > 0; j--) {
-      led.setIntensity(0,j);
-      led.setIntensity(1,j);
-      if (controlledDelay(blinkTime)) {
-        break;
-      }
+void displayEyesSlow(const byte emoticonLeft[], const byte emoticonRight[]) {
+  int limit = 1;
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < limit; j++) {
+      int indexOffset = 7 - (j + (8 - limit));
+      eye_left[indexOffset + i * 8] = (emoticonLeft[7 - j] >> (7 - i)) & 1 ? CRGB::Red : CRGB::Black;
+      eye_right[indexOffset + i * 8] = (emoticonRight[7 - j] >> (7 - i)) & 1 ? CRGB::Red : CRGB::Black;
     }
-    for (int i = 0; i <= maxBrightness; i++) {
-      led.setIntensity(0,i);
-      led.setIntensity(1,i);
-      if (controlledDelay(blinkTime)) {
-        break;
-      }
+    FastLED.show();
+    controlledDelay(transitionTime);
+    clearDisplays();
+    limit++;
   }
-  led.setIntensity(0,maxBrightness);
-  led.setIntensity(1,maxBrightness);
-  clearDisplays();
-  }
-}
-
-void cry_eyes()
-{
-  set_both_eyes(semicolon, semicolon);
-  controlledDelay(longTime);
-  clearDisplays();
-  set_both_eyes(semicolonblink, semicolonblink);
-  controlledDelay(blinkTime);
-  clearDisplays();
 }
 
 void uneven_round_eyes()
@@ -1544,48 +1256,81 @@ void uneven_round_eyes()
   }
 }
 
-void tripleDot_eyes()
+void generic_eyes(byte eye0[], byte eye1[])
 {
-  set_both_eyes(tripleDot, tripleDot);
+  displayEyes(eye0, eye1);
   controlledDelay(longTime);
   clearDisplays();
-  set_both_eyes(tripleDotBlink, tripleDotBlink);
+  displayEyes(minus, minus);
   controlledDelay(blinkTime);
   clearDisplays();
+}
+
+void custom_blink_eyes(byte frame1[], byte frame2[]) {
+  displayEyes(frame1, frame1);
+  controlledDelay(shortTime);
+  clearDisplays();
+  displayEyes(frame2, frame2);
+  controlledDelay(shortTime);
+  clearDisplays();
+}
+
+void cry_eyes()
+{
+  displayEyes(semicolon, semicolon);
+  controlledDelay(longTime);
+  clearDisplays();
+  displayEyes(semicolonblink, semicolonblink);
+  controlledDelay(blinkTime);
+  clearDisplays();
+}
+
+void tripleDot_eyes()
+{
+  displayEyes(tripleDot, tripleDot);
+  controlledDelay(longTime);
+  clearDisplays();
+  displayEyes(tripleDotBlink, tripleDotBlink);
+  controlledDelay(blinkTime);
+  clearDisplays();
+}
+
+void heart_eyes()
+{
+  if (frame == 0) {
+    frame = 1;
+    displayEyesSlow(heart, heart);
+    displayEyes(heart, heart);
+    controlledDelay(longblinkTime);
+    clearDisplays();
+  }
+  else if (frame == 1) {
+    frame = 2;
+    displayEyes(heart2, heart2);
+    controlledDelay(longblinkTime);
+    clearDisplays();
+  }
+  else if (frame == 2) {
+    frame = 3;
+    displayEyes(heart3, heart3);
+    controlledDelay(shortTime);
+    clearDisplays();
+  }
+  else if (frame == 3) {
+    frame = 0;
+    displayEyes(heart2, heart2);
+    controlledDelay(longblinkTime);
+    clearDisplays();
+    displayEyesSlow(heart, heart);
+  }
 }
 
 void bracket_eyes()
 {
-  set_both_eyes(bracket, bracket);
+  displayEyes(bracket, bracket);
   controlledDelay(longTime);
   clearDisplays();
-  set_both_eyes(bracketBlink, bracketBlink);
-  controlledDelay(blinkTime);
-  clearDisplays();
-}
-
-void music_eyes()
-{
-  set_both_eyes(musicNote, musicNote);
-  for (double j = maxBrightness; j > 0; j -= 0.1) {
-    led.setIntensity(0,j);
-    led.setIntensity(1,j);
-    controlledDelay(30);
-  }
-  for (double i = 0; i <= maxBrightness; i += 0.1) {
-    led.setIntensity(0,i);
-    led.setIntensity(1,i);
-    controlledDelay(30);
-  }
-  clearDisplays();
-}
-
-void apostrophe_eyes()
-{
-  set_both_eyes(leftApostrophe, rightApostrophe);
-  controlledDelay(longTime);
-  clearDisplays();
-  set_both_eyes(leftApostropheBlink, rightApostropheBlink);
+  displayEyes(bracketBlink, bracketBlink);
   controlledDelay(blinkTime);
   clearDisplays();
 }
@@ -1594,27 +1339,27 @@ void swear_eyes()
 {
   switch(random(0,6)) {
     case 0:
-    set_both_eyes(hashtag, hashtag);
+    displayEyes(hashtag, hashtag);
     break;
 
     case 1:
-    set_both_eyes(dollar, dollar);
+    displayEyes(dollar, dollar);
     break;
 
     case 2:
-    set_both_eyes(star, star);
+    displayEyes(star, star);
     break;
 
     case 3:
-    set_both_eyes(at, at);
+    displayEyes(at, at);
     break;
 
     case 4:
-    set_both_eyes(question, question);
+    displayEyes(question, question);
     break;
 
     case 5:
-    set_both_eyes(exclamation, exclamation);
+    displayEyes(exclamation, exclamation);
     break;
   }
   controlledDelay(blinkTime);
@@ -1623,161 +1368,47 @@ void swear_eyes()
 
 void charge_eyes()
 {
-  set_both_eyes(charge1, charge1);
+  displayEyes(charge1, charge1);
   controlledDelay(shortTime);
   clearDisplays();
-  set_both_eyes(charge2, charge2);
+  displayEyes(charge2, charge2);
   controlledDelay(shortTime);
   clearDisplays();
-  set_both_eyes(charge3, charge3);
+  displayEyes(charge3, charge3);
   controlledDelay(shortTime);
   clearDisplays();
-  set_both_eyes(charge4, charge4);
+  displayEyes(charge4, charge4);
   controlledDelay(shortTime);
   clearDisplays();
-  set_both_eyes(charge5, charge5);
+  displayEyes(charge5, charge5);
   controlledDelay(shortTime);
   clearDisplays();
-  set_both_eyes(charge6, charge6);
+  displayEyes(charge6, charge6);
   controlledDelay(shortTime);
   clearDisplays();
-}
-
-void pacman_eyes()
-{
-  int character = random(0, 5);
-  int side = random(0, 2);
-  if (character == 0) {
-    if (side == 0) {
-        set_both_eyes_slow_reverse(pacman1, ghost2);
-        set_both_eyes(pacman2, ghost2);
-        controlledDelay(shortTime);
-        set_both_eyes(pacman1, ghost1);
-        controlledDelay(blinkTime);
-        set_both_eyes(pacman2, ghost1);
-        controlledDelay(shortTime);
-        remove_both_eyes_slow(pacman1, ghost1);
-    }
-    else {
-        set_both_eyes_slow(ghost2, pacman1);
-        set_both_eyes(ghost2, pacman2);
-        controlledDelay(shortTime);
-        set_both_eyes(ghost2, pacman1);
-        controlledDelay(blinkTime);
-        set_both_eyes(ghost1, pacman2);
-        controlledDelay(shortTime);
-        remove_both_eyes_slow(ghost1, pacman1);
-    }
-  }
-  else {
-    if (side == 0) {
-      set_both_eyes_slow(ghost1, ghost3);
-    }
-    else {
-      set_both_eyes_slow_reverse(ghost1, ghost3);
-    }
-    set_both_eyes(ghost1, ghost3);
-    controlledDelay(shortTime);
-    set_both_eyes(ghost1, ghost1);
-    controlledDelay(blinkTime);
-    set_both_eyes(ghost2, ghost1);
-    controlledDelay(shortTime);
-    remove_both_eyes_slow(ghost1, ghost2);
-  }
-  set_both_eyes_slow(colon, colon);
-  set_both_eyes(colon, colon);
-  controlledDelay(longblinkTime);
-  remove_both_eyes_slow(colon, colon);
-  clearDisplays();
-  }
-
-void zodiac_eyes()
-{
-  if (frame == 0) {
-    frame = 1;
-    set_both_eyes(aries, aries);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 1) {
-    frame = 2;
-    set_both_eyes(taurus, taurus);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 2) {
-    frame = 3;
-    set_both_eyes(gemini, gemini);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 3) {
-    frame = 4;
-    set_both_eyes(cancer, cancer);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 4) {
-    frame = 5;
-    set_both_eyes(leo, leo);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 5) {
-    frame = 6;
-    set_both_eyes(virgo, virgo);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 6) {
-    frame = 7;
-    set_both_eyes(libra, libra);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 7) {
-    frame = 8;
-    set_both_eyes(scorpio, scorpio);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 8) {
-    frame = 9;
-    set_both_eyes(sagitarius, sagitarius);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 9) {
-    frame = 10;
-    set_both_eyes(capricorn, capricorn);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 10) {
-    frame = 11;
-    set_both_eyes(aquarius, aquarius);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
-  else if (frame == 11) {
-    frame = 0;
-    set_both_eyes(pisces, pisces);
-    controlledDelay(shortTime);
-    clearDisplays();
-  }
 }
 
 void flashing_square_eyes()
 {
   for (int i = 0; i < 5; i++) {
-    set_both_eyes(flashingSquare1, flashingSquare1);
+    displayEyes(flashingSquare1, flashingSquare1);
     controlledDelay(longblinkTime);
     clearDisplays();
-    set_both_eyes(flashingSquare2, flashingSquare2);
+    displayEyes(flashingSquare2, flashingSquare2);
     controlledDelay(longblinkTime);
     clearDisplays();
   }
-  set_both_eyes(minus, minus);
+  displayEyes(minus, minus);
+  controlledDelay(blinkTime);
+  clearDisplays();
+}
+
+void apostrophe_eyes()
+{
+  displayEyes(leftApostrophe, rightApostrophe);
+  controlledDelay(longTime);
+  clearDisplays();
+  displayEyes(leftApostropheBlink, rightApostropheBlink);
   controlledDelay(blinkTime);
   clearDisplays();
 }
@@ -1793,434 +1424,6 @@ void round_dot_eyes()
   }
   else {
     generic_eyes(roundCentre, roundCentre);
-  }
-}
-
-void generic_eyes(byte eye0[], byte eye1[])
-{
-  set_both_eyes(eye0, eye1);
-  controlledDelay(longTime);
-  clearDisplays();
-  set_both_eyes(minus, minus);
-  controlledDelay(blinkTime);
-  clearDisplays();
-}
-
-void custom_blink_eyes(byte frame1[], byte frame2[]) {
-  set_both_eyes(frame1, frame1);
-  controlledDelay(shortTime);
-  clearDisplays();
-  set_both_eyes(frame2, frame2);
-  controlledDelay(shortTime);
-  clearDisplays();
-}
-
-void removeEyes()
-{
-  if (currentValue == "key1") {
-    // Dead eyes X_X
-    remove_both_eyes_slow(X, X);
-  }
-  if (currentValue == "key2") {
-    // Shy eyes ^_^
-    remove_both_eyes_slow(wink_blink, wink_blink);
-  }
-  if (currentValue == "key4") {
-    // Equals sign eyes =_=
-    remove_both_eyes_slow(equal, equal);
-  }
-  if (currentValue == "key5") {
-    // Hashtag eyes #_#
-    remove_both_eyes_slow(hashtag, hashtag);
-  }
-  if (currentValue == "key6") {
-    // Eyes closed >_<
-    remove_both_eyes_slow(rightwink, leftwink);
-  }
-  if (currentValue == "key7") {
-    // At sign eyes @_@
-    remove_both_eyes_slow(at, at);
-  }
-  if (currentValue == "key8") {
-    // Crying eyes ;_;
-    remove_both_eyes_slow(semicolon, semicolon);
-  }
-  if (currentValue == "key10") {
-    // Exclamation mark eyes !_!
-    remove_both_eyes_slow(exclamation, exclamation);
-  }
-  if (currentValue == "key11") {
-    // Question mark eyes ?_?
-    remove_both_eyes_slow(question, question);
-  }
-  if (currentValue == "key12") {
-    // Negation eyes ¬_¬
-    remove_both_eyes_slow(negation, negation);
-  }
-  if (currentValue == "key13") {
-    // Nine eyes 9_9
-    remove_both_eyes_slow(nineEye, nineEye);
-  }
-  if (currentValue == "key14") {
-    // Dot dot dot eyes ..._...
-    remove_both_eyes_slow(tripleDot, tripleDot);
-  }
-  if (currentValue == "key15") {
-    // Money eyes $_$
-    remove_both_eyes_slow(wink, wink);
-  }
-  if (currentValue == "key16") {
-    // eyes <3_<3
-    remove_both_eyes_slow(wink, wink);
-  }
-  if (currentValue == "key17") {
-    // Round eyes O_O
-    remove_both_eyes_slow(O, O);
-  }
-  if (currentValue == "key18") {
-    // Uneven round eyes O_o
-    remove_both_eyes_slow(O, smallo);
-  }
-  if (currentValue == "key19") {
-    // Sideways bracket eyes -_-
-    remove_both_eyes_slow(bracket, bracket);
-  }
-  if (currentValue == "key20") {
-    // Star eyes *_*
-    remove_both_eyes_slow(star, star);
-  }
-  if (currentValue == "key21") {
-    // T eyes T_T
-    remove_both_eyes_slow(t, t);
-  }
-  if (currentValue == "key22") {
-    // Lenny eyes
-    remove_both_eyes_slow(lenny, lenny);
-  }
-  if (currentValue == "key23") {
-    // Music note eyes
-    remove_both_eyes_slow(musicNote, musicNote);
-  }
-  if (currentValue == "key24") {
-    // Quote eyes "_"
-    remove_both_eyes_slow(leftQuote, rightQuote);
-  }
-  if (currentValue == "key25") {
-    // Apostrophe eyes '_'
-    remove_both_eyes_slow(leftApostrophe, rightApostrophe);
-  }
-  if (currentValue == "key26") {
-    // Rectangle eyes
-    remove_both_eyes_slow(rectangle, rectangle);
-  }
-  if (currentValue == "key27") {
-    // Plus eyes +_+
-    remove_both_eyes_slow(plus, plus);
-  }
-  if (currentValue == "key28") {
-    // Swear eyes
-    remove_both_eyes_slow(hashtag, hashtag);
-  }
-  if (currentValue == "key29") {
-    // U eyes U_U
-    remove_both_eyes_slow(u, u);
-  }
-  if (currentValue == "key30") {
-    // Left arrow eyes <-_<-
-    remove_both_eyes_slow(leftArrow2, leftArrow2);
-  }
-  if (currentValue == "key31") {
-    // Right arrow eyes ->_->
-    remove_both_eyes_slow(rightArrow2, rightArrow2);
-  }
-  if (currentValue == "key32") {
-    // Refresh eyes
-    remove_both_eyes_slow(refresh2, refresh2);
-  }
-  if (currentValue == "key33") {
-    // Charge eyes
-    remove_both_eyes_slow(charge6, charge6);
-  }
-  if (currentValue == "key34") {
-    // Tick eyes
-    remove_both_eyes_slow(tick, tick);
-  }
-  if (currentValue == "key36") {
-    // Cute eyes
-    remove_both_eyes_slow(cute, cute);
-  }
-  if (currentValue == "key37") {
-    // n eyes n_n
-    remove_both_eyes_slow(n, n);
-  }
-  if (currentValue == "key38") {
-    // square eyes
-    remove_both_eyes_slow(hollowSquare, hollowSquare);
-  }
-  if (currentValue == "key39") {
-    // Zodiac eyes
-    remove_both_eyes_slow(aries, aries);
-  }
-  if (currentValue == "key40") {
-    // Female eyes
-    remove_both_eyes_slow(female, female);
-  }
-  if (currentValue == "key41") {
-    // Male eyes
-    remove_both_eyes_slow(male, male);
-  }
-  if (currentValue == "key42") {
-    // Flashing square eyes
-    remove_both_eyes_slow(flashingSquare2, flashingSquare2);
-  }
-  if (currentValue == "key43") {
-    // Round dot eyes
-    remove_both_eyes_slow(roundCentre, roundCentre);
-  }
-  if (currentValue == "key45") {
-    // Inward slash eyes
-    remove_both_eyes_slow(left_slash, right_slash);
-  }
-  if (currentValue == "key46") {
-    // Outward slash eyes
-    remove_both_eyes_slow(right_slash, left_slash);
-  }
-  if (currentValue == "key47") {
-    // Round filled eyes
-    remove_both_eyes_slow(roundFull, roundFull);
-  }
-}
-
-void changeEyes() {
-  if (currentValue == "key1") {
-    // Dead eyes X_X
-    set_both_eyes_slow(X, X);
-    generic_eyes(X, X);
-  }
-  if (currentValue == "key2") {
-    // Shy eyes ^_^
-    set_both_eyes_slow(wink, wink);
-    shy_eyes();
-  }
-  if (currentValue == "key3") {
-    // Normal ^_^
-    // Wink ~_v
-    wink_eyes();
-  }
-  if (currentValue == "key4") {
-    // Equals sign eyes =_=
-    set_both_eyes_slow(equal, equal);
-    generic_eyes(equal, equal);
-  }
-  if (currentValue == "key5") {
-    // Hashtag eyes #_#
-    set_both_eyes_slow(hashtag, hashtag);
-    generic_eyes(hashtag, hashtag);
-  }
-  if (currentValue == "key6") {
-    // Eyes closed >_<
-    set_both_eyes_slow(rightwink, leftwink);
-    generic_eyes(rightwink, leftwink);
-  }
-  if (currentValue == "key7") {
-    // At sign eyes @_@
-    set_both_eyes_slow(at, at);
-    generic_eyes(at, at);
-  }
-  if (currentValue == "key8") {
-    // Crying eyes ;_;
-    set_both_eyes_slow(semicolon, semicolon);
-    cry_eyes();
-  }
-  if (currentValue == "key9") {
-    // Z eyes Z_Z
-    sleep_eyes();
-  }
-  if (currentValue == "key10") {
-    // Exclamation mark eyes !_!
-    generic_eyes(exclamation, exclamation);
-  }
-  if (currentValue == "key11") {
-    // Question mark eyes ?_?
-    generic_eyes(question, question);
-  }
-  if (currentValue == "key12") {
-    // Negation eyes ¬_¬
-    set_both_eyes_slow(negation, negation);
-    generic_eyes(negation, negation);
-  }
-  if (currentValue == "key13") {
-    // Nine eyes 9_9
-    set_both_eyes_slow(nineEye, nineEye);
-    generic_eyes(nineEye, nineEye);
-  }
-  if (currentValue == "key14") {
-    // Dot dot dot eyes ..._...
-    set_both_eyes_slow(tripleDot, tripleDot);
-    tripleDot_eyes();
-  }
-  if (currentValue == "key15") {
-    // Money eyes $_$
-    set_both_eyes_slow(dollar, dollar);
-    money_eyes();
-  }
-  if (currentValue == "key16") {
-    // Heart eyes <3_<3
-    set_both_eyes_slow(heart, heart);
-    heart_eyes();
-  }
-  if (currentValue == "key17") {
-    // Round eyes O_O
-    set_both_eyes_slow(O, O);
-    generic_eyes(O, O);
-  }
-  if (currentValue == "key18") {
-    // Uneven round eyes O_o
-    set_both_eyes_slow(O, smallo);
-    uneven_round_eyes();
-  }
-  if (currentValue == "key19") {
-    // Sideways bracket eyes -_-
-    set_both_eyes_slow(bracket, bracket);
-    bracket_eyes();
-  }
-  if (currentValue == "key20") {
-    // Star eyes *_*
-    set_both_eyes_slow(star, star);
-    generic_eyes(star, star);
-  }
-  if (currentValue == "key21") {
-    // T eyes T_T
-    set_both_eyes_slow(t, t);
-    generic_eyes(t, t);
-  }
-  if (currentValue == "key22") {
-    // Lenny eyes
-    set_both_eyes_slow(lenny, lenny);
-    generic_eyes(lenny, lenny);
-  }
-  if (currentValue == "key23") {
-    // Music note eyes
-    set_both_eyes_slow(musicNote, musicNote);
-    music_eyes();
-  }
-  if (currentValue == "key24") {
-    // Quote eyes "_"
-    set_both_eyes_slow(leftQuote, rightQuote);
-    generic_eyes(leftQuote, rightQuote);
-  }
-  if (currentValue == "key25") {
-    //Apostrophe eyes '_'
-    set_both_eyes_slow(leftApostrophe, rightApostrophe);
-    apostrophe_eyes();
-  }
-  if (currentValue == "key26") {
-    // Rectangle eyes
-    set_both_eyes_slow(rectangle, rectangle);
-    generic_eyes(rectangle, rectangle);
-  }
-  if (currentValue == "key27") {
-    // Plus eyes +_+
-    set_both_eyes_slow(plus, plus);
-    generic_eyes(plus, plus);
-  }
-  if (currentValue == "key28") {
-    // Swear eyes
-    set_both_eyes_slow(hashtag, hashtag);
-    swear_eyes();
-  }
-  if (currentValue == "key29") {
-    // U eyes U_U
-    set_both_eyes_slow(u, u);
-    generic_eyes(u, u);
-  }
-  if (currentValue == "key30") {
-    // Left arrow eyes <-_<-
-    set_both_eyes_slow(leftArrow1, leftArrow1);
-    custom_blink_eyes(leftArrow2, leftArrow2);
-  }
-  if (currentValue == "key31") {
-    // Right arrow eyes ->_->
-    set_both_eyes_slow(rightArrow1, rightArrow1);
-    custom_blink_eyes(rightArrow2, rightArrow2);
-  }
-  if (currentValue == "key32") {
-    // Refresh eyes
-    set_both_eyes_slow(refresh1, refresh1);
-    custom_blink_eyes(refresh1, refresh2);
-  }
-  if (currentValue == "key33") {
-    // Charge eyes
-    set_both_eyes_slow(charge1, charge1);
-    charge_eyes();
-  }
-  if (currentValue == "key34") {
-    // Tick eyes
-    set_both_eyes_slow(tick, tick);
-    generic_eyes(tick, tick);
-  }
-  if (currentValue == "key35") {
-    // Pacman eyes
-    pacman_eyes();
-  }
-  if (currentValue == "key36") {
-    // Cute eyes
-    set_both_eyes_slow(cute, cute);
-    generic_eyes(cute, cute);
-  }
-  if (currentValue == "key37") {
-    // n eyes n_n
-    set_both_eyes_slow(n, n);
-    generic_eyes(n, n);
-  }
-  if (currentValue == "key38") {
-    // Square eyes
-    set_both_eyes_slow(hollowSquare, hollowSquare);
-    generic_eyes(hollowSquare, hollowSquare);
-  }
-  if (currentValue == "key39") {
-    // Zodiac eyes
-    set_both_eyes_slow(aries, aries);
-    zodiac_eyes();
-  }
-  if (currentValue == "key40") {
-    // Female eyes
-    set_both_eyes_slow(female, female);
-    generic_eyes(female, female);
-  }
-  if (currentValue == "key41") {
-    // Male eyes
-    set_both_eyes_slow(male, male);
-    generic_eyes(male, male);
-  }
-  if (currentValue == "key42") {
-    // Flashing square eyes
-    set_both_eyes_slow(flashingSquare1, flashingSquare1);
-    flashing_square_eyes();
-  }
-  if (currentValue == "key43") {
-    // Round dot eyes
-    set_both_eyes_slow(roundCentre, roundCentre);
-    round_dot_eyes();
-  }
-  if (currentValue == "key44") {
-    // Random glitchy eyes ::_::
-    glitch_eyes();
-  }
-  if (currentValue == "key45") {
-    // Inward slash eyes
-    set_both_eyes_slow(left_slash, right_slash);
-    generic_eyes(left_slash, right_slash);
-  }
-  if (currentValue == "key46") {
-    // Outward slash eyes
-    set_both_eyes_slow(right_slash, left_slash);
-    generic_eyes(right_slash, left_slash);
-  }
-  if (currentValue == "key47") {
-    // Round filled eyes
-    set_both_eyes_slow(roundFull, roundFull);
-    generic_eyes(roundFull, roundFull);
   }
 }
 
@@ -2282,10 +1485,6 @@ void repeatEyes() {
     // Dot dot dot eyes ..._...
     tripleDot_eyes();
   }
-  if (currentValue == "key15") {
-    // Money eyes $_$
-    money_eyes();
-  }
   if (currentValue == "key16") {
     // Heart eyes <3_<3
     heart_eyes();
@@ -2313,10 +1512,6 @@ void repeatEyes() {
   if (currentValue == "key22") {
     // Lenny eyes
     generic_eyes(lenny, lenny);
-  }
-  if (currentValue == "key23") {
-    // Music note eyes
-    music_eyes();
   }
   if (currentValue == "key24") {
     // Quote eyes "_"
@@ -2362,10 +1557,6 @@ void repeatEyes() {
     // Tick eyes
     generic_eyes(tick, tick);
   }
-  if (currentValue == "key35") {
-    // Pacman eyes
-    pacman_eyes();
-  }
   if (currentValue == "key36") {
     // Cute eyes
     generic_eyes(cute, cute);
@@ -2377,10 +1568,6 @@ void repeatEyes() {
   if (currentValue == "key38") {
     // Square eyes
     generic_eyes(hollowSquare, hollowSquare);
-  }
-  if (currentValue == "key39") {
-    // Zodiac eyes
-    zodiac_eyes();
   }
   if (currentValue == "key40") {
     // Female eyes
@@ -2398,10 +1585,6 @@ void repeatEyes() {
     // Round dot eyes
     round_dot_eyes();
   }
-  if (currentValue == "key44") {
-    // Random glitchy eyes ::_::
-    glitch_eyes();
-  }
   if (currentValue == "key45") {
     // Inward slash eyes
     generic_eyes(left_slash, right_slash);
@@ -2414,101 +1597,421 @@ void repeatEyes() {
     // Round filled eyes
     generic_eyes(roundFull, roundFull);
   }
-  if (currentValue == "scrollMessage") {
-    if (characterMessage != "") {
-      byte byteBuffer1[8];
-      byte byteBuffer2[8];
-      memcpy_P(byteBuffer1, alphabet + 8 * characterMessage[characterMessagePointer], 8);
-      if (characterMessagePointer == 0) {
-        scrolling_eye(byteBuffer1, 1);
-      }
-      ++characterMessagePointer;
-      if (characterMessagePointer > characterMessage.length()-1) {
-        characterMessagePointer = 0;
-        // Space
-        memcpy_P(byteBuffer2, alphabet, 8);
-      }
-      else {
-        memcpy_P(byteBuffer2, alphabet + 8 * characterMessage[characterMessagePointer], 8);
-      }
-      scrolling_both_eyes(byteBuffer1, byteBuffer2);
-    }
-  }
-  if (currentValue == "custom") {
-    generic_eyes(customLED, customLED);
-  }
 }
 
-void customMessage(String message) {
-  int count = 0;
-  characterMessage = "";
-  characterMessagePointer = 0;
-  for (char c : message) {
-    if (count == maxMessageSize) {
-      break;
-    }
-    if (c >= 32 && c <= 33) {
-      c -=32;
-      characterMessage += c;
-    }
-    else if (c == 46) {
-      c -= 44;
-      characterMessage += c;
-    }
-    else if (c >= 48 && c <= 57) {
-      c -= 45;
-      characterMessage += c;
-    }
-    else if (c >= 65 && c <= 90) {
-      c -= 52;
-      characterMessage += c;
-    }
-    else if (c >= 97 && c <= 122) {
-      c -= 84;
-      characterMessage += c;
-    }
-    else {
-      --count;
-    }
-    ++count;
-  }
-  Serial.println("Message" + characterMessage);
-  if (characterMessage != "") {
-    currentValue = "scrollMessage";
-  }
-}
-
-boolean inKeySet(String value)
+void removeEyes()
 {
-  boolean valid = false;
-  if (value.substring(0, 3) == "key" && value.substring(3).toInt() <= 47) {
-    valid = true;
+  if (currentValue == "key1") {
+    // Dead eyes X_X
+    removeEyesSlow(X, X);
   }
-  return valid;
+  if (currentValue == "key2") {
+    // Shy eyes ^_^
+    removeEyesSlow(wink_blink, wink_blink);
+  }
+  if (currentValue == "key4") {
+    // Equals sign eyes =_=
+    removeEyesSlow(equal, equal);
+  }
+  if (currentValue == "key5") {
+    // Hashtag eyes #_#
+    removeEyesSlow(hashtag, hashtag);
+  }
+  if (currentValue == "key6") {
+    // Eyes closed >_<
+    removeEyesSlow(rightwink, leftwink);
+  }
+  if (currentValue == "key7") {
+    // At sign eyes @_@
+    removeEyesSlow(at, at);
+  }
+  if (currentValue == "key8") {
+    // Crying eyes ;_;
+    removeEyesSlow(semicolon, semicolon);
+  }
+  if (currentValue == "key10") {
+    // Exclamation mark eyes !_!
+    removeEyesSlow(exclamation, exclamation);
+  }
+  if (currentValue == "key11") {
+    // Question mark eyes ?_?
+    removeEyesSlow(question, question);
+  }
+  if (currentValue == "key12") {
+    // Negation eyes ¬_¬
+    removeEyesSlow(negation, negation);
+  }
+  if (currentValue == "key13") {
+    // Nine eyes 9_9
+    removeEyesSlow(nineEye, nineEye);
+  }
+  if (currentValue == "key14") {
+    // Dot dot dot eyes ..._...
+    removeEyesSlow(tripleDot, tripleDot);
+  }
+  if (currentValue == "key15") {
+    // Money eyes $_$
+    removeEyesSlow(wink, wink);
+  }
+  if (currentValue == "key16") {
+    // eyes <3_<3
+    removeEyesSlow(wink, wink);
+  }
+  if (currentValue == "key17") {
+    // Round eyes O_O
+    removeEyesSlow(O, O);
+  }
+  if (currentValue == "key18") {
+    // Uneven round eyes O_o
+    removeEyesSlow(O, smallo);
+  }
+  if (currentValue == "key19") {
+    // Sideways bracket eyes -_-
+    removeEyesSlow(bracket, bracket);
+  }
+  if (currentValue == "key20") {
+    // Star eyes *_*
+    removeEyesSlow(star, star);
+  }
+  if (currentValue == "key21") {
+    // T eyes T_T
+    removeEyesSlow(t, t);
+  }
+  if (currentValue == "key22") {
+    // Lenny eyes
+    removeEyesSlow(lenny, lenny);
+  }
+  if (currentValue == "key23") {
+    // Music note eyes
+    removeEyesSlow(musicNote, musicNote);
+  }
+  if (currentValue == "key24") {
+    // Quote eyes "_"
+    removeEyesSlow(leftQuote, rightQuote);
+  }
+  if (currentValue == "key25") {
+    // Apostrophe eyes '_'
+    removeEyesSlow(leftApostrophe, rightApostrophe);
+  }
+  if (currentValue == "key26") {
+    // Rectangle eyes
+    removeEyesSlow(rectangle, rectangle);
+  }
+  if (currentValue == "key27") {
+    // Plus eyes +_+
+    removeEyesSlow(plus, plus);
+  }
+  if (currentValue == "key28") {
+    // Swear eyes
+    removeEyesSlow(hashtag, hashtag);
+  }
+  if (currentValue == "key29") {
+    // U eyes U_U
+    removeEyesSlow(u, u);
+  }
+  if (currentValue == "key30") {
+    // Left arrow eyes <-_<-
+    removeEyesSlow(leftArrow2, leftArrow2);
+  }
+  if (currentValue == "key31") {
+    // Right arrow eyes ->_->
+    removeEyesSlow(rightArrow2, rightArrow2);
+  }
+  if (currentValue == "key32") {
+    // Refresh eyes
+    removeEyesSlow(refresh2, refresh2);
+  }
+  if (currentValue == "key33") {
+    // Charge eyes
+    removeEyesSlow(charge6, charge6);
+  }
+  if (currentValue == "key34") {
+    // Tick eyes
+    removeEyesSlow(tick, tick);
+  }
+  if (currentValue == "key36") {
+    // Cute eyes
+    removeEyesSlow(cute, cute);
+  }
+  if (currentValue == "key37") {
+    // n eyes n_n
+    removeEyesSlow(n, n);
+  }
+  if (currentValue == "key38") {
+    // square eyes
+    removeEyesSlow(hollowSquare, hollowSquare);
+  }
+  if (currentValue == "key39") {
+    // Zodiac eyes
+    removeEyesSlow(aries, aries);
+  }
+  if (currentValue == "key40") {
+    // Female eyes
+    removeEyesSlow(female, female);
+  }
+  if (currentValue == "key41") {
+    // Male eyes
+    removeEyesSlow(male, male);
+  }
+  if (currentValue == "key42") {
+    // Flashing square eyes
+    removeEyesSlow(flashingSquare2, flashingSquare2);
+  }
+  if (currentValue == "key43") {
+    // Round dot eyes
+    removeEyesSlow(roundCentre, roundCentre);
+  }
+  if (currentValue == "key45") {
+    // Inward slash eyes
+    removeEyesSlow(left_slash, right_slash);
+  }
+  if (currentValue == "key46") {
+    // Outward slash eyes
+    removeEyesSlow(right_slash, left_slash);
+  }
+  if (currentValue == "key47") {
+    // Round filled eyes
+    removeEyesSlow(roundFull, roundFull);
+  }
 }
 
-void setup()
-{
-  // Sets the data rate in bits per second for serial bit transmission
-  Serial.begin(9600);
+void removeEyesSlow(const byte emoticonLeft[], const byte emoticonRight[]) {
+  int limit = 8;
+  for (int i = 7; i >= 0; i--) {
+    for (int j = 0; j < limit; j++) {
+      int indexOffset = 7 - (j + (8 - limit));
+      eye_left[indexOffset + i * 8] = (emoticonLeft[7 - j] >> (7 - i)) & 1 ? CRGB::Red : CRGB::Black;
+      eye_right[indexOffset + i * 8] = (emoticonRight[7 - j] >> (7 - i)) & 1 ? CRGB::Red : CRGB::Black;
+    }
+    FastLED.show();
+    controlledDelay(transitionTime);
+    clearDisplays();
+    limit--;
+  }
+}
 
-  // Wake up displays
-  led.shutdown(0,false);  
-  led.shutdown(1,false);
-  
-  // Set intensity levels
-  led.setIntensity(0,maxBrightness);  
-  led.setIntensity(1,maxBrightness);
+void changeEyes() {
+  if (currentValue == "key1") {
+    // Dead eyes X_X
+    displayEyesSlow(X, X);
+    generic_eyes(X, X);
+  }
+  if (currentValue == "key2") {
+    // Shy eyes ^_^
+    displayEyesSlow(wink, wink);
+    shy_eyes();
+  }
+  if (currentValue == "key3") {
+    // Normal ^_^
+    // Wink ~_v
+    wink_eyes();
+  }
+  if (currentValue == "key4") {
+    // Equals sign eyes =_=
+    displayEyesSlow(equal, equal);
+    generic_eyes(equal, equal);
+  }
+  if (currentValue == "key5") {
+    // Hashtag eyes #_#
+    displayEyesSlow(hashtag, hashtag);
+    generic_eyes(hashtag, hashtag);
+  }
+  if (currentValue == "key6") {
+    // Eyes closed >_<
+    displayEyesSlow(rightwink, leftwink);
+    generic_eyes(rightwink, leftwink);
+  }
+  if (currentValue == "key7") {
+    // At sign eyes @_@
+    displayEyesSlow(at, at);
+    generic_eyes(at, at);
+  }
+  if (currentValue == "key8") {
+    // Crying eyes ;_;
+    displayEyesSlow(semicolon, semicolon);
+    cry_eyes();
+  }
+  if (currentValue == "key9") {
+    // Z eyes Z_Z
+    sleep_eyes();
+  }
+  if (currentValue == "key10") {
+    // Exclamation mark eyes !_!
+    generic_eyes(exclamation, exclamation);
+  }
+  if (currentValue == "key11") {
+    // Question mark eyes ?_?
+    generic_eyes(question, question);
+  }
+  if (currentValue == "key12") {
+    // Negation eyes ¬_¬
+    displayEyesSlow(negation, negation);
+    generic_eyes(negation, negation);
+  }
+  if (currentValue == "key13") {
+    // Nine eyes 9_9
+    displayEyesSlow(nineEye, nineEye);
+    generic_eyes(nineEye, nineEye);
+  }
+  if (currentValue == "key14") {
+    // Dot dot dot eyes ..._...
+    displayEyesSlow(tripleDot, tripleDot);
+    tripleDot_eyes();
+  }
+  if (currentValue == "key16") {
+    // Heart eyes <3_<3
+    displayEyesSlow(heart, heart);
+    heart_eyes();
+  }
+  if (currentValue == "key17") {
+    // Round eyes O_O
+    displayEyesSlow(O, O);
+    generic_eyes(O, O);
+  }
+  if (currentValue == "key18") {
+    // Uneven round eyes O_o
+    displayEyesSlow(O, smallo);
+    uneven_round_eyes();
+  }
+  if (currentValue == "key19") {
+    // Sideways bracket eyes -_-
+    displayEyesSlow(bracket, bracket);
+    bracket_eyes();
+  }
+  if (currentValue == "key20") {
+    // Star eyes *_*
+    displayEyesSlow(star, star);
+    generic_eyes(star, star);
+  }
+  if (currentValue == "key21") {
+    // T eyes T_T
+    displayEyesSlow(t, t);
+    generic_eyes(t, t);
+  }
+  if (currentValue == "key22") {
+    // Lenny eyes
+    displayEyesSlow(lenny, lenny);
+    generic_eyes(lenny, lenny);
+  }
+  if (currentValue == "key24") {
+    // Quote eyes "_"
+    displayEyesSlow(leftQuote, rightQuote);
+    generic_eyes(leftQuote, rightQuote);
+  }
+  if (currentValue == "key25") {
+    //Apostrophe eyes '_'
+    displayEyesSlow(leftApostrophe, rightApostrophe);
+    apostrophe_eyes();
+  }
+  if (currentValue == "key26") {
+    // Rectangle eyes
+    displayEyesSlow(rectangle, rectangle);
+    generic_eyes(rectangle, rectangle);
+  }
+  if (currentValue == "key27") {
+    // Plus eyes +_+
+    displayEyesSlow(plus, plus);
+    generic_eyes(plus, plus);
+  }
+  if (currentValue == "key28") {
+    // Swear eyes
+    displayEyesSlow(hashtag, hashtag);
+    swear_eyes();
+  }
+  if (currentValue == "key29") {
+    // U eyes U_U
+    displayEyesSlow(u, u);
+    generic_eyes(u, u);
+  }
+  if (currentValue == "key30") {
+    // Left arrow eyes <-_<-
+    displayEyesSlow(leftArrow1, leftArrow1);
+    custom_blink_eyes(leftArrow2, leftArrow2);
+  }
+  if (currentValue == "key31") {
+    // Right arrow eyes ->_->
+    displayEyesSlow(rightArrow1, rightArrow1);
+    custom_blink_eyes(rightArrow2, rightArrow2);
+  }
+  if (currentValue == "key32") {
+    // Refresh eyes
+    displayEyesSlow(refresh1, refresh1);
+    custom_blink_eyes(refresh1, refresh2);
+  }
+  if (currentValue == "key33") {
+    // Charge eyes
+    displayEyesSlow(charge1, charge1);
+    charge_eyes();
+  }
+  if (currentValue == "key34") {
+    // Tick eyes
+    displayEyesSlow(tick, tick);
+    generic_eyes(tick, tick);
+  }
+  if (currentValue == "key36") {
+    // Cute eyes
+    displayEyesSlow(cute, cute);
+    generic_eyes(cute, cute);
+  }
+  if (currentValue == "key37") {
+    // n eyes n_n
+    displayEyesSlow(n, n);
+    generic_eyes(n, n);
+  }
+  if (currentValue == "key38") {
+    // Square eyes
+    displayEyesSlow(hollowSquare, hollowSquare);
+    generic_eyes(hollowSquare, hollowSquare);
+  }
+  if (currentValue == "key40") {
+    // Female eyes
+    displayEyesSlow(female, female);
+    generic_eyes(female, female);
+  }
+  if (currentValue == "key41") {
+    // Male eyes
+    displayEyesSlow(male, male);
+    generic_eyes(male, male);
+  }
+  if (currentValue == "key42") {
+    // Flashing square eyes
+    displayEyesSlow(flashingSquare1, flashingSquare1);
+    flashing_square_eyes();
+  }
+  if (currentValue == "key43") {
+    // Round dot eyes
+    displayEyesSlow(roundCentre, roundCentre);
+    round_dot_eyes();
+  }
+  if (currentValue == "key45") {
+    // Inward slash eyes
+    displayEyesSlow(left_slash, right_slash);
+    generic_eyes(left_slash, right_slash);
+  }
+  if (currentValue == "key46") {
+    // Outward slash eyes
+    displayEyesSlow(right_slash, left_slash);
+    generic_eyes(right_slash, left_slash);
+  }
+  if (currentValue == "key47") {
+    // Round filled eyes
+    displayEyesSlow(roundFull, roundFull);
+    generic_eyes(roundFull, roundFull);
+  }
+}
 
-  // Sets eyes when switched on
+void setup() {
+  Serial.begin(9600);  // Инициализируем серийник
+  FastLED.addLeds<WS2812, DATA_PIN_EYE_LEFT, GRB>(eye_left, NUM_LEDS_EYE_LEFT);
+  FastLED.addLeds<WS2812, DATA_PIN_EYE_RIGHT, GRB>(eye_right, NUM_LEDS_EYE_RIGHT);
+  FastLED.setBrightness(255);
   changeEyes();
 }
 
-void loop()
-{
-  while (Serial.available()) {
+void loop() {
+    while (Serial.available()) {
     // Stores incoming data
-    data = "";
+    String data = "";
     char c = Serial.read();
     if (c == '(') {
       boolean receivingMessage = true;
@@ -2530,33 +2033,12 @@ void loop()
     if (data != currentValue && inKeySet(data)) {
       removeEyes();
       if (currentValue != "key44") {
-        delay(blinkTime);
+      controlledDelay(blinkTime);
       }
       currentValue = data;
       frame = 0;
       changeEyes();
     }
-    if (data.substring(0, 6) == "bright") {
-      maxBrightness = String(data[6]).toInt();
-      led.setIntensity(0,maxBrightness);
-      led.setIntensity(1,maxBrightness);
-    }
-    if (data.substring(0, 7) == "message") {
-      customMessage(data.substring(7));
-    }
-    if (data.substring(0, 5) == "speed") {
-      textSpeed = data.substring(5).toInt();
-    }
-    if (data.substring(0, 3) == "led") {
-      Serial.println(data);
-      for (int i=0; i<8; i++) {
-        Serial.println(data.substring(3+(i*3), 6+(i*3)));
-        byte b = data.substring(3+(i*3), 6+(i*3)).toInt();
-        customLED[i] = b;
-      }
-      currentValue = "custom";
-    }
   }
-  repeatEyes();
+repeatEyes();
 }
-
