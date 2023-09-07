@@ -7,4 +7,5 @@
 
 ---
 
-<h3><a href="https://tommakesthings.github.io/Bluetooth-Wrench-Mask/">Here</a> is the original tutorial (Documentation is a work in progress</h3>
+<h3><a href="https://tommakesthings.github.io/Bluetooth-Wrench-Mask/">Here</a> is the original tutorial (Documentation is a work in progress)</h3>
+<h2>this fork now supports WS2812 LED Matrices, should work fine though i not yet tested it in real life (will update)</h2>
